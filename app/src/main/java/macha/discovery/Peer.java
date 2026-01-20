@@ -1,7 +1,6 @@
 package macha.discovery;
 
 import java.time.Instant;
-import java.time.Period;
 
 public final class Peer {
     public final String name;
