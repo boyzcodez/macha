@@ -6,6 +6,10 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
+import macha.discovery.Peer;
+import macha.discovery.UdpDiscovery;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 public class MainController {
 
@@ -14,6 +18,11 @@ public class MainController {
 
     @FXML private TextField hostField;
     @FXML private TextField portField;
+
+    @FXML private ListView<Peer> peersList;
+
+    private final ObservableList<Peer> peers = FXCollections.observableArrayList();
+    private UdpDiscovery discovery;
 
     private SimpleTcpServer server;
     private SimpleTcpClient client;
@@ -25,6 +34,23 @@ public class MainController {
 
         client = new SimpleTcpClient(msg ->
                 Platform.runLater(() -> messagesList.getItems().add("Peer: " + msg)));
+        
+        
+        peersList.setItems(peers);
+
+        peersList.setOnMouseClicked(e -> {
+            Peer selected = peersList.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                hostField.setText(selected.ip);
+                portField.setText(Integer.toString(selected.port));
+                messagesList.getItems().add("[Selected " + selected + "]");
+            }
+        });
+
+        // Start discovery (use any name you like)
+        String deviceName = System.getProperty("user.name", "Device");
+        discovery = new UdpDiscovery(peer -> Platform.runLater(() -> upsertPeer(peer)));
+        discovery.start(deviceName, parsePortSafeDefault());
     }
 
     @FXML
@@ -94,5 +120,26 @@ public class MainController {
             messagesList.getItems().add("[Invalid port]");
             return -1;
         }
+    }
+
+    private void upsertPeer(Peer incoming) {
+        // ignore ourselves if we see our own broadcast (optional)
+        // if (incoming.ip.equals("127.0.0.1")) return;
+
+        for (int i = 0; i < peers.size(); i++) {
+            if (peers.get(i).key().equals(incoming.key())) {
+                peers.get(i).lastSeenEpochMs = incoming.lastSeenEpochMs;
+                return;
+            }
+        }
+        peers.add(incoming);
+    }
+
+    private int parsePortSafeDefault() {
+        try {
+            int p = Integer.parseInt(portField.getText().trim());
+            if (p >= 1 && p <= 65535) return p;
+        } catch (Exception ignored) {}
+        return 45455;
     }
 }

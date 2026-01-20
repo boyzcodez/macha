@@ -12,6 +12,10 @@
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="macha.ui.MainController">
 
+    <left>
+        <ListView fx:id="peersList" prefWidth="220" />
+    </left>
+
     <top>
         <HBox spacing="8">
             <padding>
