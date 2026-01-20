@@ -27,6 +27,7 @@ public class MainController {
     private SimpleTcpServer server;
     private SimpleTcpClient client;
 
+    private macha.storage.LocalConfig config;
     private String deviceName;
 
     @FXML
@@ -34,10 +35,18 @@ public class MainController {
         hostField.setText("127.0.0.1");
         portField.setText("45455");
 
+        try {
+            config = new macha.storage.LocalConfig("lanchat");
+            config.loadOrCreate();
+            deviceName = config.getDeviceName();
+            messagesList.getItems().add("[Device] " + deviceName + " (" + config.getDeviceId() + ")");
+        } catch (Exception e) {
+            deviceName = System.getProperty("user.name", "Device");
+            messagesList.getItems().add("[Config error] " + e.getMessage());
+        }
+
         client = new SimpleTcpClient(msg ->
                 Platform.runLater(() -> messagesList.getItems().add("Peer: " + msg)));
-        
-        deviceName = System.getProperty("user.name", "Device");
 
         peersList.setItems(peers);
 
@@ -50,8 +59,12 @@ public class MainController {
             }
         });
 
-        discovery = new UdpDiscovery(peer -> Platform.runLater(() -> upsertPeer(peer)));
-        discovery.start(deviceName, parsePortSafeDefault());
+        int advertisedPort = parsePortSafeDefault(); // you already have this helper
+        discovery = new UdpDiscovery(peer ->
+                Platform.runLater(() -> upsertPeer(peer))); // you already have upsertPeer(...)
+        discovery.start(deviceName, advertisedPort);
+
+        messagesList.getItems().add("[Discovery] Broadcasting + listening on UDP " + UdpDiscovery.DISCOVERY_PORT);
     }
 
     @FXML
