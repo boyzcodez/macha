@@ -12,24 +12,48 @@ public class MainController {
     @FXML private ListView<String> messagesList;
     @FXML private TextField messageField;
 
+    @FXML private TextField hostField;
+    @FXML private TextField portField;
+
     private SimpleTcpServer server;
     private SimpleTcpClient client;
 
     @FXML
     private void initialize() {
-        // Instance A: run server (if port already in use, it just won't work — that’s okay for now)
-        server = new SimpleTcpServer(45455, msg ->
-                Platform.runLater(() -> messagesList.getItems().add("Peer: " + msg)));
-        server.start();
+        hostField.setText("127.0.0.1");
+        portField.setText("45455");
 
-        // Client connects to localhost (for now)
         client = new SimpleTcpClient(msg ->
                 Platform.runLater(() -> messagesList.getItems().add("Peer: " + msg)));
+    }
+
+    @FXML
+    private void onStartHost() {
+        int port = parsePort();
+        if (port == -1) return;
+
+        if (server != null) {
+            messagesList.getItems().add("[Host already running]");
+            return;
+        }
+
+        server = new SimpleTcpServer(port, msg ->
+                Platform.runLater(() -> messagesList.getItems().add("Peer: " + msg)));
+
+        server.start();
+        messagesList.getItems().add("[Hosting on port " + port + "]");
+    }
+
+    @FXML
+    private void onConnect() {
+        String host = hostField.getText();
+        int port = parsePort();
+        if (port == -1) return;
 
         new Thread(() -> {
             try {
-                client.connect("127.0.0.1", 45455);
-                Platform.runLater(() -> messagesList.getItems().add("[Connected to localhost]"));
+                client.connect(host, port);
+                Platform.runLater(() -> messagesList.getItems().add("[Connected to " + host + ":" + port + "]"));
             } catch (Exception e) {
                 Platform.runLater(() -> messagesList.getItems().add("[Connect failed] " + e.getMessage()));
             }
@@ -41,7 +65,7 @@ public class MainController {
         String text = messageField.getText();
         if (text == null || text.isBlank()) return;
 
-        String trimmed = text.trim();;
+        String trimmed = text.trim();
         messagesList.getItems().add("Me: " + trimmed);
         messageField.clear();
 
@@ -49,6 +73,17 @@ public class MainController {
             client.send(trimmed);
         } catch (Exception e) {
             messagesList.getItems().add("[Send failed] " + e.getMessage());
+        }
+    }
+
+    private int parsePort() {
+        try {
+            int port = Integer.parseInt(portField.getText().trim());
+            if (port < 1 || port > 65535) throw new NumberFormatException();
+            return port;
+        } catch (Exception e) {
+            messagesList.getItems().add("[Invalid port]");
+            return -1;
         }
     }
 }
