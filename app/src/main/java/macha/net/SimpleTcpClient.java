@@ -33,6 +33,10 @@ public final class SimpleTcpClient implements AutoCloseable {
         readerThread.start();
     }
 
+    public boolean isConnected() {
+        return conn != null;
+    }
+
     public void send(String msg) throws IOException {
         if (conn == null) throw new IllegalStateException("Not connected");
         conn.sendText(msg);

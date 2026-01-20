@@ -70,7 +70,16 @@ public class MainController {
         messageField.clear();
 
         try {
-            client.send(trimmed);
+            // Prefer outbound connection if you used Connect
+            if (client != null && client.isConnected()) {
+                client.send(trimmed);
+            }
+            // Otherwise, if you're hosting and someone connected to you, send to them
+            else if (server != null && server.hasClients()) {
+                server.broadcast(trimmed);
+            } else {
+                messagesList.getItems().add("[Not connected to anyone]");
+            }
         } catch (Exception e) {
             messagesList.getItems().add("[Send failed] " + e.getMessage());
         }
