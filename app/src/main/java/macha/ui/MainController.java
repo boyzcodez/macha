@@ -27,6 +27,8 @@ public class MainController {
     private SimpleTcpServer server;
     private SimpleTcpClient client;
 
+    private String deviceName;
+
     @FXML
     private void initialize() {
         hostField.setText("127.0.0.1");
@@ -35,7 +37,8 @@ public class MainController {
         client = new SimpleTcpClient(msg ->
                 Platform.runLater(() -> messagesList.getItems().add("Peer: " + msg)));
         
-        
+        deviceName = System.getProperty("user.name", "Device");
+
         peersList.setItems(peers);
 
         peersList.setOnMouseClicked(e -> {
@@ -47,8 +50,6 @@ public class MainController {
             }
         });
 
-        // Start discovery (use any name you like)
-        String deviceName = System.getProperty("user.name", "Device");
         discovery = new UdpDiscovery(peer -> Platform.runLater(() -> upsertPeer(peer)));
         discovery.start(deviceName, parsePortSafeDefault());
     }
@@ -65,8 +66,13 @@ public class MainController {
 
         server = new SimpleTcpServer(port, msg ->
                 Platform.runLater(() -> messagesList.getItems().add("Peer: " + msg)));
-
         server.start();
+
+        // Restart discovery to advertise correct tcpPort
+        try { discovery.close(); } catch (Exception ignored) {}
+        discovery = new UdpDiscovery(peer -> Platform.runLater(() -> upsertPeer(peer)));
+        discovery.start(deviceName, port);
+
         messagesList.getItems().add("[Hosting on port " + port + "]");
     }
 
@@ -125,6 +131,7 @@ public class MainController {
     private void upsertPeer(Peer incoming) {
         // ignore ourselves if we see our own broadcast (optional)
         // if (incoming.ip.equals("127.0.0.1")) return;
+        if (isSelfPeer(incoming)) return;
 
         for (int i = 0; i < peers.size(); i++) {
             if (peers.get(i).key().equals(incoming.key())) {
@@ -141,5 +148,17 @@ public class MainController {
             if (p >= 1 && p <= 65535) return p;
         } catch (Exception ignored) {}
         return 45455;
+    }
+
+    private boolean isSelfPeer(Peer p) {
+        try {
+            // If it's the same machine IP and same advertised port, treat as self.
+            // This works well enough for now.
+            String localHost = java.net.InetAddress.getLocalHost().getHostAddress();
+            int myPort = parsePortSafeDefault();
+            return p.ip.equals(localHost) && p.port == myPort;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
