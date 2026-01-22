@@ -12,7 +12,7 @@ public class App extends Application {
         FXMLLoader loader = new FXMLLoader(App.class.getResource("main.fxml"));
         Scene scene = new Scene(loader.load(), 520, 360);
 
-        stage.setTitle("LanChat");
+        stage.setTitle("Macha");
         stage.setScene(scene);
         stage.show();
     }
